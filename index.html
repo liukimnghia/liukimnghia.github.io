@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+		<head>
+		<title>three.js webgl - geometry - cube</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				margin: 0px;
+				background-color: #000000;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+
+	<body>
+		
+        <script src="lib/three.js"></script>
+		<script src="lib/js/libs/dat.gui.min.js"></script>
+		<script src="lib/js/Detector.js"></script>
+		<script src="lib/js/libs/stats.min.js"></script>
+		<script src="lib/OrbitAndPanControls.new.js"></script>
+		<script src="lib/Coordinates.js"></script>
+        <script src="lib/js/loaders/OBJLoader.js"></script>
+        <script src="lib/js/controls/FlyControls.js"></script>
+       
+
+		<script>
+			var container, camera, scene, renderer;
+
+			var cameraControls, effectController;
+            var clock = new THREE.Clock();
+
+            var FocusonPlanet = false;
+            var Path = "";
+            var stats;
+
+            var Orbit = true;
+            var FlyCameraControl = false;
+            
+            var PositionCamera, PlanettoFocus;
+            var DistancePlanet, SpeedPlanet, StepPlanet, DistanceCamera;
+
+            //Planet
+            var _mesh_line_mars, _mesh_line_jupiter, _mesh_line_moon, 
+            _mesh_line_saturn, _mesh_line_uranus, 
+            _mesh_line_neptune, _mesh_line_earth, 
+            _mesh_line_venus, _mesh_line_mercury;
+            var Sun, Mercury, Venus, Earth, Mar, Jupiter, Saturn, Uranus, Neptune, Moon, Harley;
+            
+            var stats;
+
+            //Loader 3D Model
+            var loader_OBJ, loader_STL;
+
+            //Step Planet
+            var RatioDistance = 0.000065;
+            var RatioRadius = 0.0065;
+            var ratioStep = 0.00009;
+            var ratioSpinStep = 0.00009;
+            var stepMercury= 0;
+            var stepVenus = 0;
+            var stepEarth = 0;
+            var stepMar = 0;
+            var stepJupiter = 0;
+            var stepSaturn = 0;
+            var stepUranus = 0;
+            var stepNeptune = 0;
+            var stepMoon = 0;
+
+            var SpeedMercury = 47.362 * ratioStep, SpeedVenus = 35.02 * ratioStep, SpeedEarth = 29.78 * ratioStep,
+                SpeedMar = 24.077 * ratioStep, SpeedJupiter = 13.07 * ratioStep, SpeedSaturn = 9.69 * ratioStep, 
+                SpeedUranus = 6.80 * ratioStep, SpeedNeptune = 5.43 * ratioStep, SpeedMoon = 1.022 * ratioStep;
+
+            //Step Equatorial rotation velocity
+            var _ERV_Sun = 15.96385 * ratioSpinStep;
+            var _ERV_Mercury = 0.0030255 * ratioSpinStep;
+            var _ERV_Venus = 0.0018111 * ratioSpinStep;
+            var _ERV_Earth = 0.465111 * ratioSpinStep;
+            var _ERV_Mars = 0.241172 * ratioSpinStep;
+            var _ERV_Jupiter = 12.6 * ratioSpinStep;
+            var _ERV_Saturn = 9.87 * ratioSpinStep;
+            var _ERV_Uranus = 2.59 * ratioSpinStep;
+            var _ERV_Neptune = 2.68 * ratioSpinStep; 
+            var _ERV_Moon = 0.004627 * ratioSpinStep;
+
+            //Light
+            var pointLight;
+            var ambientLight;
+
+            //Init Variance for InitSolarSystem
+            var RadiusSun = 2 * 69570 * RatioRadius;
+            var DistanceMercury = 57909100 * RatioDistance;
+            var DistanceVenus = 108208000 * RatioDistance;
+            var DistanceEarth = 149598023 * RatioDistance;
+            var DistanceMars =  227939100 * RatioDistance;
+            var DistanceAsteroid = 503243150 * RatioDistance;
+            var DistanceJupiter =  778547200 * RatioDistance;
+            var DistanceSaturn = 1433449370 * RatioDistance;
+            var DistanceUranus = 2876679082 * RatioDistance; 
+            var DistanceNeptune = 4503443661 * RatioDistance;
+            var DistanceMoon = (384400 + 149598023) * RatioDistance + 6371 * RatioRadius;
+            
+            
+            
+            //MAIN FUNCTION
+            
+            function SetCameraFocusOn(Planet, Step, Distance, RatioDistance,  Speed){
+                FocusonPlanet = true;
+                SpeedPlanet = Speed;
+                PlanettoFocus = Planet;
+                StepPlanet = Step;
+                DistancePlanet = Distance;
+                DistanceCamera = Distance - RatioDistance * Distance;
+            }
+            
+            function EventHandlerFunction(event){
+                //fillScene();
+                if(FlyCameraControl){
+                    return;
+                }
+                switch(event.keyCode){
+
+                    case 49: SetCameraFocusOn(Mercury, stepMercury, DistanceMercury, 0.03, SpeedMercury); break;
+                    case 50: SetCameraFocusOn(Venus, stepVenus, DistanceVenus, 0.04, SpeedVenus); break;
+                    case 51: SetCameraFocusOn(Earth, stepEarth, DistanceEarth,  0.03, SpeedEarth); break;    
+                    case 52: SetCameraFocusOn(Mar, stepMar, DistanceMars, 0.01, SpeedMar); break;
+                    case 53: SetCameraFocusOn(Jupiter, stepJupiter, DistanceJupiter, 0.03, SpeedJupiter); break;
+                    case 54: SetCameraFocusOn(Saturn, stepSaturn, DistanceSaturn, 0.018, SpeedSaturn); break;
+                    case 55: SetCameraFocusOn(Uranus, stepUranus, DistanceUranus, 0.009, SpeedUranus); break;
+                    case 56: SetCameraFocusOn(Neptune, stepNeptune, DistanceNeptune, 0.004, SpeedNeptune); break;
+                    case 57: SetCameraFocusOn(Moon, stepMoon, DistanceMoon, 0.006, SpeedMoon); break;
+                    case 27: {
+                        if(FocusonPlanet == true){
+                            fillScene();
+                            camera.position.set( RadiusSun + 1000, RadiusSun + 3000, RadiusSun + 1000);
+                            cameraControls.target.set(0, 2000, 0);
+                            FocusonPlanet = false;
+                            scene.add(_mesh_line_mercury); 
+                            scene.add(_mesh_line_venus);
+                            scene.add(_mesh_line_earth);
+                            scene.add(_mesh_line_mars);
+                            scene.add(_mesh_line_jupiter);
+                            scene.add(_mesh_line_saturn);
+                            scene.add(_mesh_line_uranus);
+                            scene.add(_mesh_line_neptune);
+                            scene.add(_mesh_line_moon);
+                        }
+                    } break; 
+                }
+            }
+            function ConvertDegreetoRadian(Value){
+                return Value * (Math.PI / 180.0);
+            }
+
+            //Create Material for Planet
+            function CreateMaterial(ImgFile, Type, Tranperent, Opacity){
+            
+                var Material;
+                var textureLoader = new THREE.TextureLoader();
+                //var Texture = new THREE.ImageUtils.loadTexture(Path + ImgFile);
+                var Texture = textureLoader.load(ImgFile);
+
+                switch (Type){
+                    case 0: Material = new THREE.MeshBasicMaterial(); break;
+                    case 1: Material = new THREE.MeshDepthMaterial(); break;
+                    case 2: Material = new THREE.MeshNormalMaterial(); break;
+                    case 3: Material = new THREE.MeshFaceMaterial(); break;
+                    case 4: Material = new THREE.MeshLambertMaterial(); break;
+                    case 5: Material = new THREE.MeshPhongMaterial(); break;
+                    case 6: Material = new THREE.ShaderMaterial(); break;
+                }
+
+                if(ImgFile !== '')
+                    Material.map = Texture;
+
+                Material.transparent = Tranperent;
+                Material.opacity = Opacity;
+
+                return Material;
+            }
+
+            //Create Planet
+            function CreateSphere(Material, Radius, WidthSegment, HeightSegment){
+                var Sphere = new THREE.Mesh(new THREE.SphereGeometry(Radius, WidthSegment, HeightSegment), Material);
+                return Sphere;
+            }
+
+            function TranslatePosition(Planet, newPosition){
+                Planet.position.x = newPosition.x;
+                Planet.position.y = newPosition.y;
+                Planet.position.z = newPosition.z;
+            }
+            
+            function makeAnimationSolarSystem(){
+
+                stepMercury += SpeedMercury;
+                stepVenus += SpeedVenus;
+                stepEarth += SpeedEarth;
+                stepMoon += SpeedMoon;
+                stepMar += SpeedMar;
+                stepJupiter += SpeedJupiter;
+                stepSaturn += SpeedSaturn;
+                stepUranus += SpeedUranus;
+                stepNeptune += SpeedNeptune;
+
+                //Camera
+                if(FocusonPlanet){
+                     StepPlanet += SpeedPlanet;
+                     PositionCamera.x = (DistanceCamera) * Math.cos(StepPlanet);
+                     PositionCamera.y = 2000 + (DistancePlanet - DistanceCamera) * Math.tan(Math.PI / 18);
+                     PositionCamera.z = DistanceCamera * Math.sin(StepPlanet);
+                     camera.position.x = PositionCamera.x;
+                     camera.position.y = PositionCamera.y;
+                     camera.position.z = PositionCamera.z;
+                     cameraControls.target = PlanettoFocus.position;
+                }
+
+                //Make Animation for Sun
+                Sun.rotation.y += _ERV_Sun;
+
+                //Make Animation for Mercury
+                Mercury.rotation.y += _ERV_Mercury;
+                Mercury.position.x = DistanceMercury * Math.cos(stepMercury);
+                Mercury.position.z = DistanceMercury * Math.sin(stepMercury);
+
+                //Make Animation for Venus
+                Venus.rotation.y += _ERV_Venus;
+                Venus.position.x = DistanceVenus * Math.cos(stepVenus);
+                Venus.position.z = DistanceVenus * Math.sin(stepVenus);
+
+                //Make Animation for Earth
+                Earth.rotation.y += _ERV_Earth;
+                Earth.position.x = DistanceEarth * Math.cos(stepEarth);
+                Earth.position.z = DistanceEarth * Math.sin(stepEarth);
+                
+                _mesh_line_moon.position.x = DistanceEarth * Math.cos(stepEarth);
+                _mesh_line_moon.position.z = DistanceEarth * Math.sin(stepEarth);
+
+                //Make Animation for Moon
+                Moon.rotation.y += _ERV_Moon;
+                Moon.position.x = (DistanceMoon - DistanceEarth) * Math.sin(stepMoon) + DistanceEarth * Math.cos(stepEarth);
+                Moon.position.z = (DistanceMoon - DistanceEarth) * Math.cos(stepMoon) + DistanceEarth * Math.sin(stepEarth);
+
+                //Make Animation for Mar
+                Mar.rotation.y += _ERV_Mars;
+                Mar.position.x = DistanceMars * Math.cos(stepMar);
+                Mar.position.z = DistanceMars * Math.sin(stepMar);
+
+                //Make Animation for Jupiter
+                Jupiter.rotation.y += _ERV_Jupiter;
+                Jupiter.position.x = DistanceJupiter * Math.cos(stepJupiter);
+                Jupiter.position.z = DistanceJupiter * Math.sin(stepJupiter);
+
+                //Make Animation for Saturn
+                Saturn.rotation.y += _ERV_Saturn;
+                Saturn.position.x = DistanceSaturn * Math.cos(stepSaturn);
+                Saturn.position.z = DistanceSaturn * Math.sin(stepSaturn);
+
+
+                //Make Animation for Uranus
+                Uranus.rotation.y += _ERV_Uranus;
+                Uranus.position.x = DistanceUranus * Math.cos(stepUranus);
+                Uranus.position.z = DistanceUranus * Math.sin(stepUranus);
+
+                //Make Animation for Neptune
+                Neptune.rotation.y += _ERV_Neptune;
+                Neptune.position.x = DistanceNeptune * Math.cos(stepNeptune);
+                Neptune.position.z = DistanceNeptune * Math.sin(stepNeptune);
+            } 
+            
+            function ImportModel(TypeModel, position, rotation){
+
+                loader_STL = new THREE.STLLoader();
+                loader_OBJ = new THREE.OBJLoader();
+
+                var _textureloader = new THREE.TextureLoader();
+                var _texture;
+                var Result;
+                switch(TypeModel){
+                    case 0: {
+                        _texture = _textureloader.load('media/img/cs291/textures/Asteroid/object1/Textures_Object.jpg');
+                        loader_OBJ.load('media/img/cs291/textures/Asteroid/object1/asteroid.obj', function(object){
+                            object.traverse( function ( child ) {
+                                if ( child instanceof THREE.Mesh ) {
+                                    child.material.map = _texture;
+                                }
+                            });
+                            object.position.x = position.x;
+                            object.position.y = position.y;
+                            object.position.z = position.z;
+
+                            object.rotation.x = rotation.x;
+                            object.rotation.y = rotation.y;
+                            object.rotation.z = rotation.z;
+
+                            Result = object;
+                        });
+                    }  break;
+
+                    case 1: {
+                        loader_STL.load('media/img/cs291/textures/Asteroid/object2/mithrasmall.stl', function ( geometry ) {
+
+                            var material = new THREE.MeshPhongMaterial();
+                            var mesh = new THREE.Mesh( geometry, material );
+
+                            mesh.position.x = position.x;
+                            mesh.position.y = position.y;
+                            mesh.position.z = position.z;
+
+                            mesh.rotation.x = rotation.x;
+                            mesh.rotation.y = rotation.y;
+                            mesh.rotation.z = rotation.z;
+
+                            mesh.castShadow = true;
+                            mesh.receiveShadow = true;
+
+                            Result = mesh.clone();
+				        } );
+                    } break;
+
+                    case 2: {
+                        loader_STL.load('media/img/cs291/textures/Asteroid/object2/toutatis.stl', function ( geometry ) {
+
+                            var material = new THREE.MeshPhongMaterial();
+                            var mesh = new THREE.Mesh( geometry, material );
+
+                            mesh.position.x = position.x;
+                            mesh.position.y = position.y;
+                            mesh.position.z = position.z;
+
+                            mesh.rotation.x = rotation.x;
+                            mesh.rotation.y = rotation.y;
+                            mesh.rotation.z = rotation.z;
+
+                            mesh.castShadow = true;
+                            mesh.receiveShadow = true;
+
+                            Result = mesh.clone();
+				        } );
+                    } break;
+
+                    case 3: {
+                        //_texture = _textureloader.load('media/img/cs291/textures/Asteroid/object1/Textures_Object.jpg');
+                        loader_OBJ.load('media/img/cs291/textures/Asteroid/object4/asteroid.obj', function(object){
+                            object.traverse( function ( child ) {
+                                if ( child instanceof THREE.Mesh ) {
+                                    //child.material.map = _texture;
+                                }
+                            });
+                            object.position.x = position.x;
+                            object.position.y = position.y;
+                            object.position.z = position.z;
+
+                            object.rotation.x = rotation.x;
+                            object.rotation.y = rotation.y;
+                            object.rotation.z = rotation.z;
+                            
+                            Result = object;
+                        });
+                    } break;
+               }
+                return Result;
+            }
+
+            function CreateAsteroidBelt(){
+                var random_number;
+                for(var i = 0.2, j = 0.2; i != 2; i += 0.2, j += 0.2){
+                    var _material_phong = CreateMaterial('', 5, false, 1);
+                    var _sphere = CreateSphere(_material_phong, 5 * 2439.7 * RatioRadius, 100, 100);
+                    TranslatePosition(_sphere, new THREE.Vector3( DistanceAsteroid * Math.sin(i), 2000, DistanceAsteroid * Math.cos(j) ) );
+                    scene.add(_sphere);
+                    //console.log("Hello world");
+                }
+           }
+
+           function CreateSkyBox(){
+               var _texture_loader = new THREE.TextureLoader();
+               var _MaterialArray = [];
+
+               var _MeshBasic = new THREE.MeshBasicMaterial();
+               _MeshBasic.map = _texture_loader.load('media/img/cs291/textures/Milkyway/dark-s_px.jpg');
+               _MeshBasic.side = THREE.DoubleSide;
+               _MaterialArray.push(_MeshBasic);
+
+               var _MeshBasic = new THREE.MeshBasicMaterial();
+               _MeshBasic.map = _texture_loader.load('media/img/cs291/textures/Milkyway/dark-s_nx.jpg');
+               _MeshBasic.side = THREE.DoubleSide;
+               _MaterialArray.push(_MeshBasic);
+                
+               var _MeshBasic = new THREE.MeshBasicMaterial();
+               _MeshBasic.map = _texture_loader.load('media/img/cs291/textures/Milkyway/dark-s_py.jpg');
+               _MeshBasic.side = THREE.DoubleSide;
+               _MaterialArray.push(_MeshBasic);
+               
+               var _MeshBasic = new THREE.MeshBasicMaterial();
+               _MeshBasic.map = _texture_loader.load('media/img/cs291/textures/Milkyway/dark-s_ny.jpg');
+               _MeshBasic.side = THREE.DoubleSide;
+               _MaterialArray.push(_MeshBasic);
+               
+               var _MeshBasic = new THREE.MeshBasicMaterial();
+               _MeshBasic.map = _texture_loader.load('media/img/cs291/textures/Milkyway/dark-s_pz.jpg');
+               _MeshBasic.side = THREE.DoubleSide;
+               _MaterialArray.push(_MeshBasic);
+               
+               var _MeshBasic = new THREE.MeshBasicMaterial();
+               _MeshBasic.map = _texture_loader.load('media/img/cs291/textures/Milkyway/dark-s_nz.jpg');
+               _MeshBasic.side = THREE.DoubleSide;
+               _MaterialArray.push(_MeshBasic);
+
+               var size = (4503443661 + 20000) * RatioDistance * 10;
+               var _skyGeo = new THREE.BoxGeometry(size, size, size);
+               var _skyMaterial = new THREE.MeshFaceMaterial(_MaterialArray);
+               var _skyBox = new THREE.Mesh(_skyGeo, _skyMaterial);
+               scene.add(_skyBox);
+
+           }
+
+            function InitSolarSystem(){
+
+                var WidthSegment = 50, HeightSegment = 50;
+                var HeightPlanetwithGround = 2000;
+                
+                CreateSkyBox();
+                var _Material_Sun = CreateMaterial('media/img/cs291/textures/Sun.jpg', 0, false, 1);
+                Sun = CreateSphere(_Material_Sun, 2 * 69570 * RatioRadius, WidthSegment, HeightSegment);
+                TranslatePosition(Sun, new THREE.Vector3(0, 2000, 0));
+                Sun.rotation.set(ConvertDegreetoRadian(7.25), 0, ConvertDegreetoRadian(7.25));
+                
+                var _Material_Mercury = CreateMaterial('media/img/cs291/textures/Mercury.jpg', 5, false, 1);
+                Mercury = CreateSphere(_Material_Mercury, 2439.7 * RatioRadius, WidthSegment, HeightSegment);
+                TranslatePosition(Mercury, new THREE.Vector3(DistanceMercury, HeightPlanetwithGround, 0));
+
+                var _radius_mercury = DistanceMercury, segments = 500,
+                _material_mercury = new THREE.LineBasicMaterial( { color: 0x0000ff } ),
+                _geometry_mercury = new THREE.CircleGeometry( _radius_mercury, segments );
+                _geometry_mercury.vertices.shift();
+                _mesh_line_mercury = new THREE.Line(_geometry_mercury, _material_mercury); 
+                TranslatePosition(_mesh_line_mercury, new THREE.Vector3(0, HeightPlanetwithGround, 0));
+                _mesh_line_mercury.rotation.x = Math.PI / 2;
+
+                var _Material_Venus = CreateMaterial('media/img/cs291/textures/Venus.jpg', 5, false, 1);
+                Venus = CreateSphere(_Material_Venus, 6051.8 * RatioRadius, WidthSegment, HeightSegment);
+                TranslatePosition(Venus, new THREE.Vector3(DistanceVenus, HeightPlanetwithGround, 0));
+                Venus.rotation.set(ConvertDegreetoRadian(177.36), 0, 0);
+
+                var _radius_venus = DistanceVenus, 
+                _material_venus = new THREE.LineBasicMaterial( {color: 0x0000ff} ),
+                _geometry_venus = new THREE.CircleGeometry(_radius_venus, segments);
+                _geometry_venus.vertices.shift();
+                _mesh_line_venus = new THREE.Line(_geometry_venus, _material_venus);
+                TranslatePosition(_mesh_line_venus, new THREE.Vector3(0, HeightPlanetwithGround, 0), 0);
+                _mesh_line_venus.rotation.x = Math.PI / 2;
+
+                var _Material_Earth = CreateMaterial('media/img/cs291/textures/Earth.jpg', 5, false, 1);
+                Earth = CreateSphere(_Material_Earth, 6371 * RatioRadius, WidthSegment, HeightSegment);
+                TranslatePosition(Earth, new THREE.Vector3(DistanceEarth, HeightPlanetwithGround, 0));
+                Earth.rotation.set(ConvertDegreetoRadian(23.4), 0, 0);
+
+                var _radius_earth = DistanceEarth, 
+                _material_earth = new THREE.LineBasicMaterial( {color: 0x0000ff} ),
+                _geometry_earth = new THREE.CircleGeometry(_radius_earth, segments);
+                _geometry_earth.vertices.shift();
+                _mesh_line_earth = new THREE.Line(_geometry_earth, _material_earth);
+                TranslatePosition(_mesh_line_earth, new THREE.Vector3(0, HeightPlanetwithGround, 0), 0);
+                _mesh_line_earth.rotation.x = Math.PI / 2;
+
+                var _Material_Moon = CreateMaterial('media/img/cs291/textures/Moon.jpg', 5, false, 1);
+                Moon = CreateSphere(_Material_Moon, 1737 * RatioRadius, WidthSegment, HeightSegment);
+                TranslatePosition(Moon, new THREE.Vector3(DistanceMoon, HeightPlanetwithGround, 0));
+                Moon.rotation.set(ConvertDegreetoRadian(6.68), 0, 0);
+                
+                var _radius_moon = DistanceMoon - DistanceEarth, 
+                _material_moon = new THREE.LineBasicMaterial( {color: 0x0000ff} ),
+                _geometry_moon = new THREE.CircleGeometry(_radius_moon, 500);
+                _geometry_moon.vertices.shift();
+                _mesh_line_moon = new THREE.Line(_geometry_moon, _material_moon);
+                TranslatePosition(_mesh_line_moon, new THREE.Vector3(DistanceEarth, HeightPlanetwithGround, DistanceEarth));
+                _mesh_line_moon.rotation.x = Math.PI / 2;
+
+                var _Material_Mars =  CreateMaterial('media/img/cs291/textures/Mars.jpg', 5, false, 1);
+                Mar = CreateSphere(_Material_Mars, 3389.5 * RatioRadius, WidthSegment, HeightSegment);
+                TranslatePosition(Mar, new THREE.Vector3(DistanceMars, HeightPlanetwithGround, 0));
+                Mar.receiveShadow = true;
+                Mar.rotation.set(ConvertDegreetoRadian(25.19), 0, 0);
+
+                var _radius_mars = DistanceMars, 
+                _material_mars = new THREE.LineBasicMaterial( {color: 0x0000ff} ),
+                _geometry_mars = new THREE.CircleGeometry(_radius_mars, segments);
+                _geometry_mars.vertices.shift();
+                _mesh_line_mars = new THREE.Line(_geometry_mars, _material_mars);
+                TranslatePosition(_mesh_line_mars, new THREE.Vector3(0, HeightPlanetwithGround, 0), 0);
+                _mesh_line_mars.rotation.x = Math.PI / 2;
+
+                var _Material_Jupiter = CreateMaterial('media/img/cs291/textures/Jupiter.jpg', 5, false, 1);
+                Jupiter = CreateSphere(_Material_Jupiter, 69911 * RatioRadius, WidthSegment, HeightSegment);
+                TranslatePosition(Jupiter, new THREE.Vector3(DistanceJupiter, HeightPlanetwithGround, 0));
+                Jupiter.rotation.set(ConvertDegreetoRadian(3.13), 0, 0);
+
+                var _radius_jupiter = DistanceJupiter, 
+                _material_jupiter = new THREE.LineBasicMaterial( {color: 0x0000ff} ),
+                _geometry_jupiter = new THREE.CircleGeometry(_radius_jupiter, segments);
+                _geometry_jupiter.vertices.shift();
+                _mesh_line_jupiter = new THREE.Line(_geometry_jupiter, _material_jupiter);
+                TranslatePosition(_mesh_line_jupiter, new THREE.Vector3(0, HeightPlanetwithGround, 0), 0);
+                _mesh_line_jupiter.rotation.x = Math.PI / 2;
+
+                var _Material_Saturn = CreateMaterial('media/img/cs291/textures/Saturn.jpg',5, false, 1);
+                var _Planet_Saturn = CreateSphere(_Material_Saturn, 58232 * RatioRadius, WidthSegment, HeightSegment);
+                var myBelt = new THREE.CylinderGeometry( 74510 * RatioRadius, 136775 * RatioRadius, 1, 200, 1, true);
+                var _Material_Belt = CreateMaterial('media/img/cs291/textures/SaturnRings.jpg', 5, false, 1);
+                _Material_Belt.transparent = true;
+                _Material_Belt.opacity = 0.7;
+                _Material_Belt.side = THREE.DoubleSide;  
+                var Belt = new THREE.Mesh(myBelt, _Material_Belt);
+                Saturn = new THREE.Object3D();
+                Saturn.add(Belt);
+                Saturn.add(_Planet_Saturn);
+                TranslatePosition(Saturn, new THREE.Vector3(DistanceSaturn, HeightPlanetwithGround, 0));
+                Saturn.rotation.set(ConvertDegreetoRadian(26.73), 0, 0);
+
+                var _radius_saturn = DistanceSaturn, 
+                _material_saturn = new THREE.LineBasicMaterial( {color: 0x0000ff} ),
+                _geometry_saturn = new THREE.CircleGeometry(_radius_saturn, segments);
+                _geometry_saturn.vertices.shift();
+                _mesh_line_saturn = new THREE.Line(_geometry_saturn, _material_saturn);
+                TranslatePosition(_mesh_line_saturn, new THREE.Vector3(0, HeightPlanetwithGround, 0), 0);
+                _mesh_line_saturn.rotation.x = Math.PI / 2;
+
+                var _Material_Uranus = CreateMaterial('media/img/cs291/textures/Uranus.jpg', 5, false, 1);
+                var _Planet_Uranus = CreateSphere(_Material_Uranus, 25362 * RatioRadius, WidthSegment, HeightSegment);
+                var myBelt_Uranus = new THREE.CylinderGeometry( 34890 * RatioRadius, 103000 * RatioRadius, 1, 200, 1, true);
+                var _Material_Belt_Uranus = CreateMaterial('media/img/cs291/textures/UranusRings.jpg', 5, false, 1);
+                _Material_Belt_Uranus.transparent = true;
+                _Material_Belt_Uranus.opacity = 0.7;
+                _Material_Belt_Uranus.side = THREE.DoubleSide;
+                var _Belt_Uranus = new THREE.Mesh(myBelt_Uranus, _Material_Belt_Uranus);
+                Uranus = new THREE.Object3D();
+                Uranus.add( _Belt_Uranus );
+                Uranus.add( _Planet_Uranus );
+                TranslatePosition(Uranus, new THREE.Vector3(DistanceUranus, HeightPlanetwithGround, 0));
+                Uranus.rotation.x = ConvertDegreetoRadian(97.77);
+
+                var _radius_uranus = DistanceUranus, 
+                _material_uranus = new THREE.LineBasicMaterial( {color: 0x0000ff} ),
+                _geometry_uranus = new THREE.CircleGeometry(_radius_uranus, segments);
+                _geometry_uranus.vertices.shift();
+                _mesh_line_uranus = new THREE.Line(_geometry_uranus, _material_uranus);
+                TranslatePosition(_mesh_line_uranus, new THREE.Vector3(0, HeightPlanetwithGround, 0), 0);
+                _mesh_line_uranus.rotation.x = Math.PI / 2;
+
+                var _Material_Neptune = CreateMaterial('media/img/cs291/textures/Neptune.jpg', 5, false, 1);
+                Neptune = CreateSphere(_Material_Neptune, 24622 * RatioRadius, WidthSegment, HeightSegment);
+                TranslatePosition(Neptune, new THREE.Vector3(DistanceNeptune, HeightPlanetwithGround, 0));
+                Neptune.rotation.set(ConvertDegreetoRadian(28.32), 0, 0);
+
+                var _radius_neptune = DistanceNeptune, 
+                _material_neptune = new THREE.LineBasicMaterial( {color: 0x0000ff} ),
+                _geometry_neptune = new THREE.CircleGeometry(_radius_neptune, segments);
+                _geometry_neptune.vertices.shift();
+                _mesh_line_neptune = new THREE.Line(_geometry_neptune, _material_neptune);
+                TranslatePosition(_mesh_line_neptune, new THREE.Vector3(0, HeightPlanetwithGround, 0), 0);
+                _mesh_line_neptune.rotation.x = Math.PI / 2;
+
+                //Create Saturn Belt
+                //CreateAsteroidBelt();
+
+                scene.add( Sun );
+                scene.add( Mercury );
+                scene.add( Venus );
+                scene.add( Earth );
+                scene.add( Moon );
+                scene.add( Mar );
+                scene.add( Jupiter );
+                scene.add( Saturn );
+                scene.add( Uranus );
+                scene.add( Neptune );
+            }
+            
+            function InitLightSystem(){
+
+                // LIGHTS
+                ambientLight = new THREE.AmbientLight( 0x222222, 0.2 );
+                scene.add(ambientLight);
+
+                //LIGHT
+                var pointColor = "#FFFFFF";
+                pointLight = new THREE.PointLight();
+                pointLight.color.set(0xFFFFFF);
+                pointLight.position.set(0,2000,0);
+                pointLight.intensity = .8;
+                
+                pointLight.shadow = new THREE.LightShadow( camera );
+				pointLight.shadow.bias = 0.0001;
+                scene.add(pointLight);
+            }
+            
+//            var _rotation = new THREE.Vector3(0.5, 0.5, 0.5);
+//            var Instance = [ImportModel(0, new THREE.Vector3(DistanceAsteroid , 2000, DistanceAsteroid ), _rotation), 
+//                            ImportModel(1, new THREE.Vector3(DistanceAsteroid , 2000, DistanceAsteroid ), _rotation), 
+//                            ImportModel(2, new THREE.Vector3(DistanceAsteroid , 2000, DistanceAsteroid ), _rotation), 
+//                            ImportModel(3, new THREE.Vector3(DistanceAsteroid , 2000, DistanceAsteroid ), _rotation)];
+            
+            function fillScene() {
+                scene = new THREE.Scene();
+                InitSolarSystem();
+                InitLightSystem();
+                
+//                for(var i = 0; i < 2; i += 0.05 ){
+//                    do{
+//                        var random_number = Math.ceil(Math.random() * 10 / 3);
+//                        var clone_object = Instance[random_number];
+//                        clone_object.position.y = 2000;
+//                        clone_object.position.x = DistanceAsteroid * Math.sin(i);
+//                        clone_object.position.z = DistanceAsteroid * Math.cos(i);
+//                        console.log(random_number);
+//                        scene.add(clone_object);
+//                    }while(random_number < 0 || random_number > 3);
+//                }
+            }
+            
+			function init() {
+
+                var canvasWidth = window.innerWidth;
+                var canvasHeight = window.innerHeight;
+                var canvasRatio = canvasWidth / canvasHeight;
+                // CAMERA
+                camera = new THREE.PerspectiveCamera( 35, canvasRatio, 1, 9000000 );
+                fillScene();
+                renderer = new THREE.WebGLRenderer({ antialias: true } );
+                renderer.gammaInput = true;
+	            renderer.gammaOutput = true;
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+                renderer.setClearColor( 0xAAAAAA, 1.0 );
+                document.body.appendChild( renderer.domElement );
+
+                //starts
+                stats = new Stats();
+                stats.domElement.style.position = 'absolute';
+                stats.domElement.style.bottom = '0px';
+                stats.domElement.style.zIndex = 100;
+                document.body.appendChild( stats.domElement );
+
+                // CONTROLS
+                cameraControls = new THREE.OrbitAndPanControls(camera, renderer.domElement);
+                camera.position.set( (1000 + RadiusSun) * 3, (3000 + RadiusSun) * 3, (1000 + RadiusSun) * 3);
+                cameraControls.target.set(0, 2000, 0);
+                cameraControls.noKeys = true;
+
+                //Event
+                document.addEventListener('keydown', EventHandlerFunction);
+                PositionCamera = new THREE.Vector3(0, 0, 0);
+			}
+
+			
+		   function animate() {
+              
+                window.requestAnimationFrame(animate);
+                render();
+                stats.update();
+            }
+
+            function SetupParameter(){
+                
+                RadiusSun = 5 * 69570 * RatioRadius;
+                DistanceMercury = 57909100 * RatioDistance;
+                DistanceVenus = 108208000 * RatioDistance;
+                DistanceEarth = 149598023 * RatioDistance;
+                DistanceMars =  227939100 * RatioDistance;
+                DistanceAsteroid = 503243150 * RatioDistance;
+                DistanceJupiter =  778547200 * RatioDistance;
+                DistanceSaturn = 1433449370 * RatioDistance;
+                DistanceUranus = 2876679082 * RatioDistance; 
+                DistanceNeptune = 4503443661 * RatioDistance;
+                DistanceMoon = (384400 + 149598023) * RatioDistance + 6371 * RatioRadius;
+                
+                _ERV_Sun = 15.96385 * ratioSpinStep;
+                _ERV_Mercury = 0.0030255 * ratioSpinStep;
+                _ERV_Venus = 0.0018111 * ratioSpinStep;
+                _ERV_Earth = 0.465111 * ratioSpinStep;
+                _ERV_Mars = 0.241172 * ratioSpinStep;
+                _ERV_Jupiter = 12.6 * ratioSpinStep;
+                _ERV_Saturn = 9.87 * ratioSpinStep;
+                _ERV_Uranus = 2.59 * ratioSpinStep;
+                _ERV_Neptune = 2.68 * ratioSpinStep; 
+                _ERV_Moon = 0.004627 * ratioSpinStep;
+                
+                SpeedMercury = 47.362 * ratioStep; SpeedVenus = 35.02 * ratioStep; SpeedEarth = 29.78 * ratioStep;
+                SpeedMar = 24.077 * ratioStep; SpeedJupiter = 13.07 * ratioStep; SpeedSaturn = 9.69 * ratioStep; 
+                SpeedUranus = 6.80 * ratioStep; SpeedNeptune = 5.43 * ratioStep; SpeedMoon = 1.022 * ratioStep;
+                
+                _radius_moon = DistanceMoon - DistanceEarth;
+            }
+            
+			function render() {
+                var delta = clock.getDelta();
+                cameraControls.update(delta);
+
+                if ( effectController.drawOrbit !== Orbit || effectController.RadiusOrbit !== RatioDistance || effectController.Speed != ratioStep 
+                || effectController.RadiusPlanet !== RatioRadius || effectController.FlyCamera !== FlyCameraControl) {
+                    
+                    if(effectController.RadiusOrbit !== RatioDistance || effectController.Speed != ratioStep 
+                    || effectController.RadiusPlanet !== RatioRadius){
+                        // camera.position.set( (1000 + RadiusSun) * 3, (3000 + RadiusSun) * 3, (1000 + RadiusSun) * 3);
+                        // cameraControls.target.set(0, 2000, 0);
+                        FocusonPlanet = false;
+                        SetupParameter();
+                        fillScene();
+            
+                    }
+                    if(effectController.drawOrbit !== Orbit){
+                        if(!FlyCameraControl){
+                            camera.position.set( (1000 + RadiusSun) * 3, (3000 + RadiusSun) * 3, (1000 + RadiusSun) * 3);
+                            cameraControls.target.set(0, 2000, 0);
+                        }
+                        FocusonPlanet = false;
+                        fillScene();                     
+                    }
+    
+                    
+                    Orbit = effectController.drawOrbit;
+                    RatioDistance = effectController.RadiusOrbit;
+                    RatioRadius = effectController.RadiusPlanet;
+                    ratioSpinStep = effectController.Speed;
+                    ratioStep = effectController.Speed;
+                    FlyCameraControl = effectController.FlyCamera;
+                    
+
+                    drawHelpers();
+                }
+                
+                makeAnimationSolarSystem();
+                renderer.render(scene, camera);
+			}
+            
+            function drawHelpers() {
+
+                if(Orbit){
+
+                    scene.add(_mesh_line_mercury); 
+                    scene.add(_mesh_line_venus);
+                    scene.add(_mesh_line_earth);
+                    scene.add(_mesh_line_mars);
+                    scene.add(_mesh_line_jupiter);
+                    scene.add(_mesh_line_saturn);
+                    scene.add(_mesh_line_uranus);
+                    scene.add(_mesh_line_neptune);
+                    scene.add(_mesh_line_moon);
+                }
+
+                if(FlyCameraControl){
+                    FocusonPlanet = false;
+                    cameraControls = new THREE.FlyControls(camera, renderer.domElement);
+                    cameraControls.movementSpeed = 1000;
+                    cameraControls.rollSpeed = Math.PI / 12;
+                    cameraControls.autoForward = false;
+                    cameraControls.dragToLook = false;
+                }
+                
+                if(!FlyCameraControl){
+                  
+                    cameraControls = new THREE.OrbitAndPanControls(camera, renderer.domElement);
+                    camera.position.set( (1000 + RadiusSun) * 3, (3000 + RadiusSun) * 3, (1000 + RadiusSun) * 3);
+                    cameraControls.target.set(0, 2000, 0);
+                 }
+
+            }
+
+            function setupGui() {
+
+                effectController = {
+
+                    drawOrbit: Orbit, 
+                    Speed : 0.00009, 
+                    RadiusOrbit: 0.00006, 
+                    RadiusPlanet: 0.0065, 
+                    FlyCamera: FlyCameraControl
+                    
+               };
+                var h;
+                var gui = new dat.GUI();
+                h = gui.addFolder("Draw");
+                h.add( effectController, "drawOrbit" ).name("draw Orbit");
+                h.add( effectController, "FlyCamera").name("Fly Mode");
+                h = gui.addFolder("Value");
+                h.add(effectController, "Speed", 0, 0.001, 0.00001 ).name("Speed");
+                h.add(effectController, "RadiusOrbit", 0.00001, 0.001, 0.00001).name("RadiusOrbit");
+                h.add(effectController, "RadiusPlanet", 0.0001, 0.01, 0.0001).name("RadiusPlanet");
+
+            }
+
+            init();
+            setupGui();
+            drawHelpers();
+            animate();
+		</script>
+
+	</body>
+</html>
